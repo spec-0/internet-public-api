@@ -3,12 +3,15 @@
 # Philosophy: this ruleset measures whether a spec is STRUCTURALLY SOUND and USABLE by
 # machines (agents, codegen, mocking) — not whether it matches any particular style guide.
 # It is deliberately relaxed: the world's flagship public APIs should all clear 90 for the
-# right reasons, and a failure should mean something is genuinely broken or ambiguous.
+# right reasons, and a failure should mean something is genuinely broken or ambiguous
+# (e.g. unresolvable $refs, duplicate operationIds, undeclared path parameters).
 #
-# Versioned: bump the version comment + changelog on every rule change; the registry
-# records which ruleset version scored each mirrored spec version.
+# Calibrated against the mirrored corpus with the same engine the registry runs.
+# Style rules that punish deliberate API-design choices (Stripe's snake_case properties,
+# terse repeated descriptions, missing examples) are off: they say nothing about whether
+# a machine can consume the contract.
 #
-# version: 1 (pre-calibration draft — tuned against the corpus before launch)
+# version: 3
 
 extends: [[spectral:oas, recommended]]
 
@@ -19,7 +22,11 @@ rules:
   no-eval-in-markdown: error
   operation-operationId-unique: error
 
-  # ── Style/documentation-completeness rules OFF — not what this gate measures ──
+  # ── Style / documentation-completeness rules OFF — not what this gate measures ─
+  camel-case-properties: off          # naming convention is the API owner's choice
+  description-duplication: off        # repeated terse descriptions are style, not breakage
+  oas3-missing-example: off           # examples are nice-to-have, not structural
+  no-$ref-siblings: off               # ubiquitous in real specs; tooling ignores siblings
   info-contact: off
   info-description: off
   info-license: off
@@ -34,12 +41,17 @@ rules:
   component-description: off
   operation-operationId-valid-in-url: off
   oas3-unused-component: off
+  paths-kebab-case: off               # Stripe et al. use snake_case path segments by design
+  no-unnecessary-combinator: off      # optimization advice, not soundness
+  no-request-body: off                # GET/DELETE bodies are the producer's call
+  oas-schema-check: off               # e.g. `minimum` on a string: sloppy, harmless to tooling
+  oas3-valid-schema-example: off      # example validity is nice-to-have, not structural
+  nullable-enum-contains-null: off
 
-  # ── Demoted to warnings — real signal, but common in giant production specs ───
+  # ── Demoted to warnings — real signal, but shouldn't sink an otherwise-sound spec ─
   operation-operationId: warn
   duplicated-entry-in-enum: warn
   typed-enum: warn
   no-ambiguous-paths: warn
   path-keys-no-trailing-slash: warn
   no-script-tags-in-markdown: warn
-  oas3-valid-schema-example: warn

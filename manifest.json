@@ -83,15 +83,6 @@
       "docsUrl": "https://developer.ups.com/catalog"
     },
     {
-      "slug": "openai-api",
-      "title": "OpenAI API",
-      "company": "OpenAI",
-      "description": "Models, chat completions, embeddings, and assistants. Mirrored from OpenAI's official OpenAPI specification.",
-      "specUrl": "https://raw.githubusercontent.com/openai/openai-openapi/main/openapi.yaml",
-      "license": "MIT",
-      "docsUrl": "https://platform.openai.com/docs/api-reference"
-    },
-    {
       "slug": "discord-api",
       "title": "Discord HTTP API",
       "company": "Discord",
@@ -126,6 +117,13 @@
       "specUrl": "https://github.com/googlemaps/openapi-specification/releases/download/v1.22.3/google-maps-platform-openapi3.json",
       "license": "Apache-2.0",
       "docsUrl": "https://developers.google.com/maps/documentation"
+    }
+  ],
+  "excluded": [
+    {
+      "company": "OpenAI",
+      "reason": "Official spec declares OpenAPI 3.1.0 but uses the 3.0-only `nullable` keyword 107+ times — fails the baseline gate (score 56) for genuine spec-correctness reasons. Revisit when upstream fixes it.",
+      "specUrl": "https://raw.githubusercontent.com/openai/openai-openapi/main/openapi.yaml"
     }
   ]
 }
