@@ -1,0 +1,47 @@
+name: Mirror public API specs
+
+on:
+  schedule:
+    - cron: "0 6 * * 1" # Mondays 06:00 UTC — scheduled runs always publish
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "calibrate = lint-only report, publishes nothing · publish = real run"
+        type: choice
+        options: [calibrate, publish]
+        default: calibrate
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    env:
+      MODE: ${{ github.event_name == 'schedule' && 'publish' || inputs.mode }}
+      SPEC0_API_URL: ${{ vars.SPEC0_API_URL || 'https://platform-backend-core-stage.up.railway.app' }}
+      SPEC0_TOKEN: ${{ secrets.SPEC0_TOKEN }}
+      MIN_SCORE: ${{ vars.MIN_SCORE || '90' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install spec0 CLI
+        run: npm install -g @spec0/cli
+
+      - name: Run mirror
+        run: bash scripts/mirror.sh
+
+      - name: File an issue on scheduled failure
+        if: failure() && github.event_name == 'schedule'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh issue create \
+            --title "Scheduled mirror run failed ($(date -u +%F))" \
+            --body "The weekly mirror publish failed — see the [run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}). Common causes: an origin URL moved, a spec dropped below the admission score, or the registry was unreachable. The last passing version of every API stays live." \
+            --repo "${{ github.repository }}"
