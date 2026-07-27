@@ -90,22 +90,38 @@ for i in $(seq 0 $((count - 1))); do
 
   # publish mode — the server is the authoritative gate
   git_sha=$(shasum -a 256 "$spec_file" 2>/dev/null | cut -c1-64 || sha256sum "$spec_file" | cut -c1-64)
-  body=$(jq -n \
-    --arg slug "$slug" --arg title "$title" --arg desc "$description" \
-    --arg sha "$git_sha" --arg owner "$company" --arg url "$spec_url" \
-    --arg lic "$license" --arg docs "$docs_url" \
-    --rawfile spec "$spec_file" \
-    --arg notes "Mirrored from the official $company OpenAPI specification." \
-    '{apiSlug: $slug, title: $title, description: $desc, visibility: "PUBLISHED",
-      semver: true, openapiSpec: $spec, gitSha: $sha, releaseNotes: $notes,
-      source: "MIRRORED", originUrl: $url, originOwner: $owner,
-      originLicense: $lic, originDocsUrl: $docs}')
 
-  http_status=$(curl -sS -o "$WORKDIR/$slug.resp.json" -w "%{http_code}" --max-time 300 \
-    -X POST "$SPEC0_API_URL/api/v1/public/apis" \
-    -H "Authorization: Bearer $SPEC0_TOKEN" \
-    -H "Content-Type: application/json" \
-    --data-binary "@/dev/stdin" <<<"$body")
+  # Version tag = the producer's own info.version (Stripe's date tags, Adyen's service
+  # majors, ...), falling back to today's date when the spec doesn't carry one. If the
+  # producer changed content without bumping their version, the tag collides (409) and
+  # we retry once with a content-hash suffix so the new snapshot still lands.
+  tag=$(python3 scripts/spec_version.py "$spec_file" || true)
+  [ -n "$tag" ] || tag=$(date -u +%Y-%m-%d)
+
+  publish_attempt() {
+    local attempt_tag="$1"
+    body=$(jq -n \
+      --arg slug "$slug" --arg title "$title" --arg desc "$description" \
+      --arg sha "$git_sha" --arg owner "$company" --arg url "$spec_url" \
+      --arg lic "$license" --arg docs "$docs_url" --arg tag "$attempt_tag" \
+      --rawfile spec "$spec_file" \
+      --arg notes "Mirrored from the official $company OpenAPI specification (their version: $attempt_tag)." \
+      '{apiSlug: $slug, title: $title, description: $desc, visibility: "PUBLISHED",
+        version: $tag, openapiSpec: $spec, gitSha: $sha, releaseNotes: $notes,
+        source: "MIRRORED", originUrl: $url, originOwner: $owner,
+        originLicense: $lic, originDocsUrl: $docs}')
+    curl -sS -o "$WORKDIR/$slug.resp.json" -w "%{http_code}" --max-time 300 \
+      -X POST "$SPEC0_API_URL/api/v1/public/apis" \
+      -H "Authorization: Bearer $SPEC0_TOKEN" \
+      -H "Content-Type: application/json" \
+      --data-binary "@/dev/stdin" <<<"$body"
+  }
+
+  http_status=$(publish_attempt "$tag")
+  if [ "$http_status" = "409" ]; then
+    tag="$tag-${git_sha:0:7}"
+    http_status=$(publish_attempt "$tag")
+  fi
 
   case "$http_status" in
     200)
