@@ -1,0 +1,45 @@
+# spec0-baseline — the public ruleset behind the registry's >= 90 admission gate.
+#
+# Philosophy: this ruleset measures whether a spec is STRUCTURALLY SOUND and USABLE by
+# machines (agents, codegen, mocking) — not whether it matches any particular style guide.
+# It is deliberately relaxed: the world's flagship public APIs should all clear 90 for the
+# right reasons, and a failure should mean something is genuinely broken or ambiguous.
+#
+# Versioned: bump the version comment + changelog on every rule change; the registry
+# records which ruleset version scored each mirrored spec version.
+#
+# version: 1 (pre-calibration draft — tuned against the corpus before launch)
+
+extends: [[spectral:oas, recommended]]
+
+rules:
+  # ── Structural soundness stays ON (these are why the gate exists) ─────────────
+  path-params: error
+  path-declarations-must-exist: error
+  no-eval-in-markdown: error
+  operation-operationId-unique: error
+
+  # ── Style/documentation-completeness rules OFF — not what this gate measures ──
+  info-contact: off
+  info-description: off
+  info-license: off
+  license-url: off
+  oas3-api-servers: off
+  openapi-tags: off
+  operation-tags: off
+  operation-tag-defined: off
+  operation-singular-tag: off
+  operation-description: off
+  oas3-parameter-description: off
+  component-description: off
+  operation-operationId-valid-in-url: off
+  oas3-unused-component: off
+
+  # ── Demoted to warnings — real signal, but common in giant production specs ───
+  operation-operationId: warn
+  duplicated-entry-in-enum: warn
+  typed-enum: warn
+  no-ambiguous-paths: warn
+  path-keys-no-trailing-slash: warn
+  no-script-tags-in-markdown: warn
+  oas3-valid-schema-example: warn
