@@ -44,6 +44,12 @@ Open a PR adding an entry to `manifest.json`. The PR must show:
 
 The calibration run on your PR will show whether it clears the score gate.
 
+**Is it your own (or proprietary) API?** Then this repo is the wrong door — mirrors are
+only for specs the owner already publishes under a redistributable license. Instead,
+[create an organisation on Spec0](https://app.spec0.io) and publish with
+`spec0 publish`: you get your own registry page (public or unlisted), version history
+with changelogs, and the same quality scoring — no PR required.
+
 ## Removal
 
 If you own one of these APIs and want your spec removed, open an issue — we'll remove
