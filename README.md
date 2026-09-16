@@ -35,6 +35,13 @@ baseline ruleset, records the score, and generates a changelog against the previ
 version. `workflow_dispatch` also offers a **calibrate** mode that only reports scores
 and publishes nothing.
 
+Each publish also records the upstream commit the snapshot was taken from, so a reader
+looking at a changelog can open the change that caused it. That matters most when a diff
+looks alarming: a spec owner correcting a response schema that was wrong produces the same
+shape of diff as one genuinely breaking their API, and only the commit tells them apart.
+Entries whose spec URL is not a file in a public repository — a release asset, a vendor
+CDN — publish without a commit rather than with a guessed one.
+
 ## Propose an API
 
 Open a PR adding an entry to `manifest.json`. The PR must show:
