@@ -91,6 +91,17 @@ for i in $(seq 0 $((count - 1))); do
   # publish mode — the server is the authoritative gate
   git_sha=$(shasum -a 256 "$spec_file" 2>/dev/null | cut -c1-64 || sha256sum "$spec_file" | cut -c1-64)
 
+  # The commit this snapshot was taken from. git_sha above is a hash of the file's bytes — it
+  # tells us the producer changed something, but a reader cannot look it up anywhere. The commit
+  # can be: it is what lets someone see that a big diff was the owner correcting their spec
+  # rather than breaking their API. Unresolvable origins publish without one.
+  origin_commit_sha=""
+  origin_commit_url=""
+  if commit_line=$(python3 scripts/origin_commit.py "$spec_url"); then
+    origin_commit_sha=$(printf '%s' "$commit_line" | cut -f1)
+    origin_commit_url=$(printf '%s' "$commit_line" | cut -f2)
+  fi
+
   # Version tag = the producer's own info.version (Stripe's date tags, Adyen's service
   # majors, ...), falling back to today's date when the spec doesn't carry one. If the
   # producer changed content without bumping their version, the tag collides (409) and
@@ -106,10 +117,13 @@ for i in $(seq 0 $((count - 1))); do
       --arg lic "$license" --arg docs "$docs_url" --arg tag "$attempt_tag" \
       --rawfile spec "$spec_file" \
       --arg notes "Mirrored from the official $company OpenAPI specification (their version: $attempt_tag)." \
+      --arg commitSha "$origin_commit_sha" --arg commitUrl "$origin_commit_url" \
       '{apiSlug: $slug, title: $title, description: $desc, visibility: "PUBLISHED",
         version: $tag, openapiSpec: $spec, gitSha: $sha, releaseNotes: $notes,
         source: "MIRRORED", originUrl: $url, originOwner: $owner,
-        originLicense: $lic, originDocsUrl: $docs}')
+        originLicense: $lic, originDocsUrl: $docs}
+       + (if $commitSha != "" then {originCommitSha: $commitSha, originCommitUrl: $commitUrl}
+          else {} end)')
     curl -sS -o "$WORKDIR/$slug.resp.json" -w "%{http_code}" --max-time 300 \
       -X POST "$SPEC0_API_URL/api/v1/public/apis" \
       -H "Authorization: Bearer $SPEC0_TOKEN" \
@@ -130,7 +144,9 @@ for i in $(seq 0 $((count - 1))); do
       created=$(jq -r '.versionCreated' "$WORKDIR/$slug.resp.json")
       result="published v$version"
       [ "$created" = "false" ] && result="unchanged (v$version)"
-      row "$slug" "✅" "${size_mb} MB" "$score" "$result ✅"
+      fetched="✅"
+      [ -n "$origin_commit_sha" ] && fetched="✅ ${origin_commit_sha:0:7}"
+      row "$slug" "$fetched" "${size_mb} MB" "$score" "$result ✅"
       ;;
     422)
       detail=$(jq -r '.detail // .message // .title // "rejected"' "$WORKDIR/$slug.resp.json" | head -c 160)

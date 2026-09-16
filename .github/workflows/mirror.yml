@@ -23,6 +23,9 @@ jobs:
       SPEC0_API_URL: ${{ vars.SPEC0_API_URL || 'https://platform-backend-core-stage.up.railway.app' }}
       SPEC0_TOKEN: ${{ secrets.SPEC0_TOKEN }}
       MIN_SCORE: ${{ vars.MIN_SCORE || '90' }}
+      # Read-only, and only to resolve each spec's upstream commit through the GitHub API —
+      # unauthenticated requests share a per-IP limit with every other job on the runner.
+      GITHUB_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v4
 
