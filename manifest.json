@@ -170,18 +170,6 @@
       "vendorWebsite": "https://netlify.com"
     },
     {
-      "slug": "api",
-      "vendorSlug": "digitalocean",
-      "vendorName": "DigitalOcean",
-      "title": "DigitalOcean API",
-      "company": "DigitalOcean",
-      "description": "Mirrored from DigitalOcean's official OpenAPI specification.",
-      "specUrl": "https://raw.githubusercontent.com/digitalocean/openapi/main/specification/DigitalOcean-public.v2.yaml",
-      "license": "Apache-2.0",
-      "docsUrl": "https://digitalocean.com",
-      "vendorWebsite": "https://digitalocean.com"
-    },
-    {
       "slug": "hris-api",
       "vendorSlug": "apideck-libraries",
       "vendorName": "Apideck Libraries",
@@ -228,18 +216,6 @@
       "license": "MIT",
       "docsUrl": "https://sms77.io/en/docs/gateway/http-api",
       "vendorWebsite": "https://sms77.io"
-    },
-    {
-      "slug": "api",
-      "vendorSlug": "bungie-net",
-      "vendorName": "Bungie, Inc.",
-      "title": "Bungie.Net API",
-      "company": "Bungie, Inc.",
-      "description": "These endpoints constitute the functionality exposed by Bungie.net, both for more traditional website functionality and for connectivity to Bungie video games and their related functionality.",
-      "specUrl": "https://raw.githubusercontent.com/Bungie-net/api/master/openapi-2.json",
-      "license": "BSD-3-Clause",
-      "docsUrl": "https://github.com/Bungie-net/api/wiki/OAuth-Documentation",
-      "vendorWebsite": "https://bungie.net"
     },
     {
       "slug": "voice",
@@ -535,6 +511,16 @@
       "company": "OpenAI",
       "reason": "Official spec declares OpenAPI 3.1.0 but uses the 3.0-only `nullable` keyword 107+ times — fails the baseline gate (score 56) for genuine spec-correctness reasons. Revisit when upstream fixes it.",
       "specUrl": "https://raw.githubusercontent.com/openai/openai-openapi/main/openapi.yaml"
+    },
+    {
+      "company": "DigitalOcean",
+      "reason": "Multi-file specification: the published entry document $refs into sibling files, so mirroring it alone leaves hundreds of unresolvable references. The resulting score would describe our fetch, not their API. Revisit if they publish a bundled document.",
+      "specUrl": "https://raw.githubusercontent.com/digitalocean/openapi/main/specification/DigitalOcean-public.v2.yaml"
+    },
+    {
+      "company": "Bungie, Inc.",
+      "reason": "Multi-file specification: the published entry document $refs into sibling files, so mirroring it alone leaves hundreds of unresolvable references. The resulting score would describe our fetch, not their API. Revisit if they publish a bundled document.",
+      "specUrl": "https://raw.githubusercontent.com/Bungie-net/api/master/openapi-2.json"
     }
   ]
 }
