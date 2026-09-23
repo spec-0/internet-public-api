@@ -2,6 +2,10 @@
 # Mirror pipeline: fetch each manifest entry's official OpenAPI spec, gate it, and
 # (in publish mode) publish it to the Spec0 public registry.
 #
+# Each listing is published under its vendor's own slug, so it is served at
+# /registry/{vendorSlug}/{slug} — the URL names whose API it is. The token in SPEC0_TOKEN has to
+# be one authorised to publish mirrors; an ordinary publishing token is refused with 403.
+#
 # Modes (env MODE):
 #   calibrate — fetch + local lint only. Publishes NOTHING. Reports every score.
 #   publish   — fetch + publish; the registry server is the authoritative gate
@@ -34,6 +38,26 @@ row() { echo "| $1 | $2 | $3 | $4 | $5 |" >> "$SUMMARY"; }
 # scores with the exact ruleset in this repo.
 if [ "$MODE" = "publish" ]; then
   : "${SPEC0_TOKEN:?SPEC0_TOKEN is required in publish mode}"
+
+  # Nothing is published without a licence and a vendor. The licence is the reason we are
+  # allowed to republish the document at all; the vendor slug is the first half of the URL the
+  # listing is served at, and a missing one would quietly publish into the wrong place.
+  missing=$(jq -r '.apis[]
+      | select((.license // "") == "" or (.vendorSlug // "") == "" or (.slug // "") == "")
+      | .title' "$MANIFEST")
+  if [ -n "$missing" ]; then
+    echo "Manifest entries missing license, vendorSlug or slug:" >&2
+    echo "$missing" >&2
+    exit 1
+  fi
+
+  dupes=$(jq -r '[.apis[] | "\(.vendorSlug)/\(.slug)"] | group_by(.) | map(select(length > 1))
+      | flatten | unique | .[]' "$MANIFEST")
+  if [ -n "$dupes" ]; then
+    echo "Two manifest entries claim the same registry path:" >&2
+    echo "$dupes" >&2
+    exit 1
+  fi
   sync_status=$(curl -sS -o "$WORKDIR/ruleset-resp.json" -w "%{http_code}" \
     -X PUT "$SPEC0_API_URL/api/v1/public/spectral/ruleset" \
     -H "Authorization: Bearer $SPEC0_TOKEN" \
@@ -52,16 +76,22 @@ count=$(jq '.apis | length' "$MANIFEST")
 for i in $(seq 0 $((count - 1))); do
   entry="$(jq -c ".apis[$i]" "$MANIFEST")"
   slug=$(jq -r '.slug' <<<"$entry")
+  vendor_slug=$(jq -r '.vendorSlug' <<<"$entry")
+  vendor_name=$(jq -r '.vendorName // .company' <<<"$entry")
+  vendor_website=$(jq -r '.vendorWebsite // empty' <<<"$entry")
   title=$(jq -r '.title' <<<"$entry")
   company=$(jq -r '.company' <<<"$entry")
   spec_url=$(jq -r '.specUrl' <<<"$entry")
   license=$(jq -r '.license' <<<"$entry")
   docs_url=$(jq -r '.docsUrl' <<<"$entry")
   description=$(jq -r '.description' <<<"$entry")
-  spec_file="$WORKDIR/$slug.spec"
+  # `slug` is unique per vendor, not globally ("api" is several vendors' slug), so the
+  # working files are keyed on the pair.
+  entry_key="$vendor_slug-$slug"
+  spec_file="$WORKDIR/$entry_key.spec"
 
   if ! curl -sSL --fail --max-time 120 "$spec_url" -o "$spec_file"; then
-    row "$slug" "❌ fetch failed" "-" "-" "error"
+    row "$vendor_slug/$slug" "❌ fetch failed" "-" "-" "error"
     fail_count=$((fail_count + 1))
     continue
   fi
@@ -69,7 +99,7 @@ for i in $(seq 0 $((count - 1))); do
   size_bytes=$(wc -c < "$spec_file" | tr -d ' ')
   size_mb=$(awk "BEGIN {printf \"%.2f\", $size_bytes / 1048576}")
   if [ "$size_bytes" -gt "$MAX_BYTES" ]; then
-    row "$slug" "✅" "${size_mb} MB" "-" "skipped — exceeds 7 MB cap"
+    row "$vendor_slug/$slug" "✅" "${size_mb} MB" "-" "skipped — exceeds 7 MB cap"
     continue
   fi
 
@@ -84,7 +114,7 @@ for i in $(seq 0 $((count - 1))); do
     if [ -n "${score%%[!0-9]*}" ] && [ "${score%%.*}" -ge "$MIN_SCORE" ] 2>/dev/null; then
       verdict="clears $MIN_SCORE ✅"
     fi
-    row "$slug" "✅" "${size_mb} MB" "$score" "$verdict"
+    row "$vendor_slug/$slug" "✅" "${size_mb} MB" "$score" "$verdict"
     continue
   fi
 
@@ -104,13 +134,16 @@ for i in $(seq 0 $((count - 1))); do
       --arg slug "$slug" --arg title "$title" --arg desc "$description" \
       --arg sha "$git_sha" --arg owner "$company" --arg url "$spec_url" \
       --arg lic "$license" --arg docs "$docs_url" --arg tag "$attempt_tag" \
+      --arg vslug "$vendor_slug" --arg vname "$vendor_name" --arg vsite "$vendor_website" \
       --rawfile spec "$spec_file" \
       --arg notes "Mirrored from the official $company OpenAPI specification (their version: $attempt_tag)." \
       '{apiSlug: $slug, title: $title, description: $desc, visibility: "PUBLISHED",
         version: $tag, openapiSpec: $spec, gitSha: $sha, releaseNotes: $notes,
         source: "MIRRORED", originUrl: $url, originOwner: $owner,
-        originLicense: $lic, originDocsUrl: $docs}')
-    curl -sS -o "$WORKDIR/$slug.resp.json" -w "%{http_code}" --max-time 300 \
+        originLicense: $lic, originDocsUrl: $docs,
+        vendorSlug: $vslug, vendorName: $vname}
+       + (if $vsite == "" then {} else {vendorWebsiteUrl: $vsite} end)')
+    curl -sS -o "$WORKDIR/$entry_key.resp.json" -w "%{http_code}" --max-time 300 \
       -X POST "$SPEC0_API_URL/api/v1/public/apis" \
       -H "Authorization: Bearer $SPEC0_TOKEN" \
       -H "Content-Type: application/json" \
@@ -125,21 +158,21 @@ for i in $(seq 0 $((count - 1))); do
 
   case "$http_status" in
     200)
-      version=$(jq -r '.version // "-"' "$WORKDIR/$slug.resp.json")
-      score=$(jq -r '.lintScore // "-"' "$WORKDIR/$slug.resp.json")
-      created=$(jq -r '.versionCreated' "$WORKDIR/$slug.resp.json")
+      version=$(jq -r '.version // "-"' "$WORKDIR/$entry_key.resp.json")
+      score=$(jq -r '.lintScore // "-"' "$WORKDIR/$entry_key.resp.json")
+      created=$(jq -r '.versionCreated' "$WORKDIR/$entry_key.resp.json")
       result="published v$version"
       [ "$created" = "false" ] && result="unchanged (v$version)"
-      row "$slug" "✅" "${size_mb} MB" "$score" "$result ✅"
+      row "$vendor_slug/$slug" "✅" "${size_mb} MB" "$score" "$result ✅"
       ;;
     422)
-      detail=$(jq -r '.detail // .message // .title // "rejected"' "$WORKDIR/$slug.resp.json" | head -c 160)
-      row "$slug" "✅" "${size_mb} MB" "-" "rejected by gate: $detail ❌"
+      detail=$(jq -r '.detail // .message // .title // "rejected"' "$WORKDIR/$entry_key.resp.json" | head -c 160)
+      row "$vendor_slug/$slug" "✅" "${size_mb} MB" "-" "rejected by gate: $detail ❌"
       reject_count=$((reject_count + 1))
       ;;
     *)
-      detail=$(head -c 160 "$WORKDIR/$slug.resp.json" | tr -d '\n|')
-      row "$slug" "✅" "${size_mb} MB" "-" "HTTP $http_status: $detail ❌"
+      detail=$(head -c 160 "$WORKDIR/$entry_key.resp.json" | tr -d '\n|')
+      row "$vendor_slug/$slug" "✅" "${size_mb} MB" "-" "HTTP $http_status: $detail ❌"
       fail_count=$((fail_count + 1))
       ;;
   esac

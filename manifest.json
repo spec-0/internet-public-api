@@ -1,122 +1,161 @@
 {
-  "$comment": "Mirror manifest. Every entry MUST point at the API owner's official machine-readable OpenAPI document, carry a redistributable license verified against that repo/file, and bundle to <= 7 MB. Entries are admission-gated at publish time: lint score >= 90 against ruleset/spec0-baseline.yaml. See README for the inclusion policy and how to propose an API.",
+  "$comment": "Each entry is one mirrored specification. `vendorSlug` and `slug` together are the registry path: /registry/{vendorSlug}/{slug}. `license` is required and must be the licence of the source document — an entry whose licence cannot be established is not added. `specUrl` must point at the producer's own published specification.",
   "apis": [
     {
-      "slug": "stripe-api",
+      "slug": "api",
+      "vendorSlug": "stripe",
+      "vendorName": "Stripe",
       "title": "Stripe API",
       "company": "Stripe",
       "description": "Payments infrastructure — charges, customers, subscriptions, invoicing. Mirrored from Stripe's official OpenAPI specification.",
       "specUrl": "https://raw.githubusercontent.com/stripe/openapi/master/openapi/spec3.yaml",
       "license": "MIT",
-      "docsUrl": "https://docs.stripe.com/api"
+      "docsUrl": "https://docs.stripe.com/api",
+      "vendorWebsite": "https://stripe.com"
     },
     {
-      "slug": "paypal-orders-api",
+      "slug": "orders-api",
+      "vendorSlug": "paypal",
+      "vendorName": "PayPal",
       "title": "PayPal Orders API v2",
       "company": "PayPal",
       "description": "Create, update, and capture orders — PayPal's flagship checkout surface. Mirrored from PayPal's official REST API specifications.",
       "specUrl": "https://raw.githubusercontent.com/paypal/paypal-rest-api-specifications/main/openapi/checkout_orders_v2.json",
       "license": "Apache-2.0",
-      "docsUrl": "https://developer.paypal.com/api/rest/"
+      "docsUrl": "https://developer.paypal.com/api/rest/",
+      "vendorWebsite": "https://www.paypal.com"
     },
     {
-      "slug": "square-api",
+      "slug": "connect-api",
+      "vendorSlug": "square",
+      "vendorName": "Square",
       "title": "Square Connect API",
       "company": "Square (Block)",
       "description": "The full Square commerce surface — payments, orders, catalog, customers — in one bundled specification. Mirrored from Square's official spec.",
       "specUrl": "https://raw.githubusercontent.com/square/connect-api-specification/master/api.json",
       "license": "Apache-2.0",
-      "docsUrl": "https://developer.squareup.com/reference/square"
+      "docsUrl": "https://developer.squareup.com/reference/square",
+      "vendorWebsite": "https://squareup.com"
     },
     {
-      "slug": "adyen-checkout-api",
+      "slug": "checkout-api",
+      "vendorSlug": "adyen",
+      "vendorName": "Adyen",
       "title": "Adyen Checkout API v72",
       "company": "Adyen",
       "description": "Adyen's online-payments API — sessions, payments, modifications. Mirrored from Adyen's official OpenAPI repository.",
       "specUrl": "https://raw.githubusercontent.com/Adyen/adyen-openapi/main/json/CheckoutService-v72.json",
       "license": "MIT",
-      "docsUrl": "https://docs.adyen.com/api-explorer/"
+      "docsUrl": "https://docs.adyen.com/api-explorer/",
+      "vendorWebsite": "https://www.adyen.com"
     },
     {
-      "slug": "twilio-api",
+      "slug": "api",
+      "vendorSlug": "twilio",
+      "vendorName": "Twilio",
       "title": "Twilio API (v2010)",
       "company": "Twilio",
       "description": "Twilio's core REST API — messaging, voice, accounts. Mirrored from Twilio's official OpenAPI (twilio-oai).",
       "specUrl": "https://raw.githubusercontent.com/twilio/twilio-oai/main/spec/yaml/twilio_api_v2010.yaml",
       "license": "MIT",
-      "docsUrl": "https://www.twilio.com/docs/usage/api"
+      "docsUrl": "https://www.twilio.com/docs/usage/api",
+      "vendorWebsite": "https://www.twilio.com"
     },
     {
-      "slug": "sendgrid-mail-api",
+      "slug": "mail-api",
+      "vendorSlug": "sendgrid",
+      "vendorName": "SendGrid",
       "title": "Twilio SendGrid v3 Mail API",
       "company": "SendGrid (Twilio)",
       "description": "Transactional email sending (Mail Send v3). Mirrored from the official sendgrid-oai specifications.",
       "specUrl": "https://raw.githubusercontent.com/twilio/sendgrid-oai/main/spec/json/tsg_mail_v3.json",
       "license": "MIT",
-      "docsUrl": "https://www.twilio.com/docs/sendgrid/api-reference"
+      "docsUrl": "https://www.twilio.com/docs/sendgrid/api-reference",
+      "vendorWebsite": "https://sendgrid.com"
     },
     {
-      "slug": "mailgun-api",
+      "slug": "api",
+      "vendorSlug": "mailgun",
+      "vendorName": "Mailgun",
       "title": "Mailgun API",
       "company": "Mailgun",
       "description": "Email sending, domains, routes, and validation. Mirrored from Mailgun's official OpenAPI document.",
       "specUrl": "https://raw.githubusercontent.com/mailgun/mailgun-mcp-server/main/src/openapi.yaml",
       "license": "Apache-2.0",
-      "docsUrl": "https://documentation.mailgun.com/docs/mailgun/api-reference/"
+      "docsUrl": "https://documentation.mailgun.com/docs/mailgun/api-reference/",
+      "vendorWebsite": "https://www.mailgun.com"
     },
     {
-      "slug": "intercom-api",
+      "slug": "api",
+      "vendorSlug": "intercom",
+      "vendorName": "Intercom",
       "title": "Intercom API v2.16",
       "company": "Intercom",
       "description": "Contacts, conversations, tickets, and messaging. Mirrored from Intercom's official OpenAPI repository.",
       "specUrl": "https://raw.githubusercontent.com/intercom/Intercom-OpenAPI/main/descriptions/2.16/api.intercom.io.yaml",
       "license": "MIT",
-      "docsUrl": "https://developers.intercom.com/docs/references/introduction"
+      "docsUrl": "https://developers.intercom.com/docs/references/introduction",
+      "vendorWebsite": "https://www.intercom.com"
     },
     {
-      "slug": "ups-shipping-api",
+      "slug": "shipping-api",
+      "vendorSlug": "ups",
+      "vendorName": "UPS",
       "title": "UPS Shipping API",
       "company": "UPS",
       "description": "Create and manage shipments on the UPS network. Mirrored from the official UPS API documentation repository.",
       "specUrl": "https://raw.githubusercontent.com/UPS-API/api-documentation/main/Shipping.yaml",
       "license": "MIT",
-      "docsUrl": "https://developer.ups.com/catalog"
+      "docsUrl": "https://developer.ups.com/catalog",
+      "vendorWebsite": "https://www.ups.com"
     },
     {
-      "slug": "discord-api",
+      "slug": "http-api",
+      "vendorSlug": "discord",
+      "vendorName": "Discord",
       "title": "Discord HTTP API",
       "company": "Discord",
       "description": "Channels, guilds, messages, and interactions. Mirrored from Discord's official API specification (published as work-in-progress by Discord).",
       "specUrl": "https://raw.githubusercontent.com/discord/discord-api-spec/main/specs/openapi.json",
       "license": "MIT",
-      "docsUrl": "https://discord.com/developers/docs"
+      "docsUrl": "https://discord.com/developers/docs",
+      "vendorWebsite": "https://discord.com"
     },
     {
-      "slug": "amazon-selling-partner-orders",
+      "slug": "selling-partner-orders",
+      "vendorSlug": "amazon",
+      "vendorName": "Amazon",
       "title": "Amazon Selling Partner API — Orders",
       "company": "Amazon",
       "description": "Order retrieval and management for Amazon sellers. Mirrored from the official Selling Partner API models repository (Orders v0).",
       "specUrl": "https://raw.githubusercontent.com/amzn/selling-partner-api-models/main/models/orders-api-model/ordersV0.json",
       "license": "Apache-2.0",
-      "docsUrl": "https://developer-docs.amazon.com/sp-api"
+      "docsUrl": "https://developer-docs.amazon.com/sp-api",
+      "vendorWebsite": "https://www.amazon.com"
     },
     {
-      "slug": "okta-management-api",
+      "slug": "management-api",
+      "vendorSlug": "okta",
+      "vendorName": "Okta",
       "title": "Okta Admin Management API",
       "company": "Okta",
       "description": "Users, groups, apps, and policies for Okta orgs. Mirrored from Okta's official management OpenAPI specification (minimal variant).",
       "specUrl": "https://raw.githubusercontent.com/okta/okta-management-openapi-spec/master/dist/current/management-minimal.yaml",
       "license": "Apache-2.0",
-      "docsUrl": "https://developer.okta.com/docs/api/"
+      "docsUrl": "https://developer.okta.com/docs/api/",
+      "vendorWebsite": "https://www.okta.com"
     },
     {
-      "slug": "google-maps-platform",
+      "slug": "maps-platform",
+      "vendorSlug": "google",
+      "vendorName": "Google",
       "title": "Google Maps Platform APIs",
       "company": "Google",
       "description": "Directions, distance matrix, geocoding, places, and more. Mirrored from the official Google Maps Platform OpenAPI specification (pinned release).",
       "specUrl": "https://github.com/googlemaps/openapi-specification/releases/download/v1.22.3/google-maps-platform-openapi3.json",
       "license": "Apache-2.0",
-      "docsUrl": "https://developers.google.com/maps/documentation"
+      "docsUrl": "https://developers.google.com/maps/documentation",
+      "vendorWebsite": "https://www.google.com"
     }
   ],
   "excluded": [
