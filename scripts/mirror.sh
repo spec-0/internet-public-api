@@ -12,11 +12,25 @@
 #               (it lints with the org's synced baseline ruleset and rejects < min score).
 #
 # Env: SPEC0_API_URL (required), SPEC0_TOKEN (required in publish mode),
-#      MODE (calibrate|publish, default calibrate), MIN_SCORE (default 90).
+#      MODE (calibrate|publish, default calibrate), MIN_SCORE (default 90),
+#      SYNC_RULESET (true|false, default true — see below).
 set -euo pipefail
 
 MODE="${MODE:-calibrate}"
 MIN_SCORE="${MIN_SCORE:-90}"
+
+# Whether to push this repo's baseline ruleset to the organisation before publishing.
+#
+# Doing so is what makes the server's gate score with the exact ruleset in this repo, and it is
+# the right default. But it is a write to the organisation's settings, and a token may be
+# authorised to publish mirrors without being authorised to change how the organisation lints.
+# Such a token gets a 403 here and the run stops before publishing anything.
+#
+# Setting this to false skips the sync and lets the run proceed. The cost is real and is stated
+# in the run summary: the server then scores every specification with whatever ruleset the
+# organisation already has, which is not necessarily the one in this repo, so scores are not
+# comparable with a run that did sync.
+SYNC_RULESET="${SYNC_RULESET:-true}"
 
 # Publishing pace.
 #
@@ -95,18 +109,28 @@ if [ "$MODE" = "publish" ]; then
     echo "$dupes" >&2
     exit 1
   fi
-  sync_status=$(curl -sS -o "$WORKDIR/ruleset-resp.json" -w "%{http_code}" \
-    -X PUT "$SPEC0_API_URL/api/v1/public/spectral/ruleset" \
-    -H "Authorization: Bearer $SPEC0_TOKEN" \
-    -H "Content-Type: application/json" \
-    --data "$(jq -n --rawfile y "$RULESET" '{rulesetYaml: $y}')")
-  if [ "$sync_status" != "200" ]; then
-    echo "Ruleset sync failed (HTTP $sync_status): $(cat "$WORKDIR/ruleset-resp.json")" >&2
+  if [ "$SYNC_RULESET" = "true" ]; then
+    sync_status=$(curl -sS -o "$WORKDIR/ruleset-resp.json" -w "%{http_code}" \
+      -X PUT "$SPEC0_API_URL/api/v1/public/spectral/ruleset" \
+      -H "Authorization: Bearer $SPEC0_TOKEN" \
+      -H "Content-Type: application/json" \
+      --data "$(jq -n --rawfile y "$RULESET" '{rulesetYaml: $y}')")
+    if [ "$sync_status" != "200" ]; then
+      echo "Ruleset sync failed (HTTP $sync_status): $(cat "$WORKDIR/ruleset-resp.json")" >&2
+      echo "" >> "$SUMMARY"
+      echo "**Ruleset sync failed (HTTP $sync_status)** — aborting before any publish." >> "$SUMMARY"
+      echo "If this token is not allowed to change the organisation's ruleset, rerun with" >> "$SUMMARY"
+      echo "\`SYNC_RULESET=false\` — and read what that costs in the note it prints." >> "$SUMMARY"
+      exit 1
+    fi
+    echo "Ruleset synced to org."
+  else
+    echo "SYNC_RULESET=false — not syncing the baseline ruleset." >&2
     echo "" >> "$SUMMARY"
-    echo "**Ruleset sync failed (HTTP $sync_status)** — aborting before any publish." >> "$SUMMARY"
-    exit 1
+    echo "> **Scores below were not measured with this repo's baseline ruleset.**" >> "$SUMMARY"
+    echo "> \`SYNC_RULESET=false\`, so the server scored each specification with whatever" >> "$SUMMARY"
+    echo "> ruleset the organisation already has. Do not compare them with a run that synced." >> "$SUMMARY"
   fi
-  echo "Ruleset synced to org."
 fi
 
 count=$(jq '.apis | length' "$MANIFEST")
