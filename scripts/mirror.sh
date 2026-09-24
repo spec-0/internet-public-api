@@ -8,29 +8,16 @@
 #
 # Modes (env MODE):
 #   calibrate — fetch + local lint only. Publishes NOTHING. Reports every score.
-#   publish   — fetch + publish; the registry server is the authoritative gate
-#               (it lints with the org's synced baseline ruleset and rejects < min score).
+#   publish   — fetch + publish; the registry server is the authoritative gate. It scores every
+#               mirrored specification against its own baseline ruleset, the same one for every
+#               listing, so nothing here needs to send it one.
 #
 # Env: SPEC0_API_URL (required), SPEC0_TOKEN (required in publish mode),
-#      MODE (calibrate|publish, default calibrate), MIN_SCORE (default 90),
-#      SYNC_RULESET (true|false, default true — see below).
+#      MODE (calibrate|publish, default calibrate), MIN_SCORE (default 90).
 set -euo pipefail
 
 MODE="${MODE:-calibrate}"
 MIN_SCORE="${MIN_SCORE:-90}"
-
-# Whether to push this repo's baseline ruleset to the organisation before publishing.
-#
-# Doing so is what makes the server's gate score with the exact ruleset in this repo, and it is
-# the right default. But it is a write to the organisation's settings, and a token may be
-# authorised to publish mirrors without being authorised to change how the organisation lints.
-# Such a token gets a 403 here and the run stops before publishing anything.
-#
-# Setting this to false skips the sync and lets the run proceed. The cost is real and is stated
-# in the run summary: the server then scores every specification with whatever ruleset the
-# organisation already has, which is not necessarily the one in this repo, so scores are not
-# comparable with a run that did sync.
-SYNC_RULESET="${SYNC_RULESET:-true}"
 
 # Publishing pace.
 #
@@ -68,6 +55,10 @@ cool_down_before() {
   fi
   return 0
 }
+# Used by calibrate mode only, to lint locally before anything is sent. The registry holds
+# its own copy of this ruleset and scores every mirrored specification with it, so publish
+# mode never reads this file — keep the two in step, or a calibrate score will not match
+# the one the listing ends up carrying.
 RULESET="ruleset/spec0-baseline.yaml"
 MANIFEST="manifest.json"
 MAX_BYTES=$((7 * 1024 * 1024))
@@ -85,8 +76,7 @@ echo "|---|---|---|---|---|" >> "$SUMMARY"
 
 row() { echo "| $1 | $2 | $3 | $4 | $5 |" >> "$SUMMARY"; }
 
-# Publish mode: sync the baseline ruleset to the org first, so the server's gate
-# scores with the exact ruleset in this repo.
+# Publish mode: check the manifest before sending anything.
 if [ "$MODE" = "publish" ]; then
   : "${SPEC0_TOKEN:?SPEC0_TOKEN is required in publish mode}"
 
@@ -108,28 +98,6 @@ if [ "$MODE" = "publish" ]; then
     echo "Two manifest entries claim the same registry path:" >&2
     echo "$dupes" >&2
     exit 1
-  fi
-  if [ "$SYNC_RULESET" = "true" ]; then
-    sync_status=$(curl -sS -o "$WORKDIR/ruleset-resp.json" -w "%{http_code}" \
-      -X PUT "$SPEC0_API_URL/api/v1/public/spectral/ruleset" \
-      -H "Authorization: Bearer $SPEC0_TOKEN" \
-      -H "Content-Type: application/json" \
-      --data "$(jq -n --rawfile y "$RULESET" '{rulesetYaml: $y}')")
-    if [ "$sync_status" != "200" ]; then
-      echo "Ruleset sync failed (HTTP $sync_status): $(cat "$WORKDIR/ruleset-resp.json")" >&2
-      echo "" >> "$SUMMARY"
-      echo "**Ruleset sync failed (HTTP $sync_status)** — aborting before any publish." >> "$SUMMARY"
-      echo "If this token is not allowed to change the organisation's ruleset, rerun with" >> "$SUMMARY"
-      echo "\`SYNC_RULESET=false\` — and read what that costs in the note it prints." >> "$SUMMARY"
-      exit 1
-    fi
-    echo "Ruleset synced to org."
-  else
-    echo "SYNC_RULESET=false — not syncing the baseline ruleset." >&2
-    echo "" >> "$SUMMARY"
-    echo "> **Scores below were not measured with this repo's baseline ruleset.**" >> "$SUMMARY"
-    echo "> \`SYNC_RULESET=false\`, so the server scored each specification with whatever" >> "$SUMMARY"
-    echo "> ruleset the organisation already has. Do not compare them with a run that synced." >> "$SUMMARY"
   fi
 fi
 
