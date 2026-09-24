@@ -13,7 +13,7 @@ the API owners themselves publish, verbatim.
 
 ## Inclusion policy
 
-An API is listed only if **all four** hold:
+An API is listed only if **all three** hold:
 
 1. **Official source** — the spec document is published by the API owner (their GitHub
    org or official docs site). Third-party reconstructions and scrapes don't qualify.
@@ -22,10 +22,12 @@ An API is listed only if **all four** hold:
    `manifest.json`. No license = not listed, no exceptions. (This is why some famous
    APIs are absent: several publish official specs with no license at all.)
 3. **≤ 7 MB** bundled — larger documents are excluded.
-4. **Quality gate** — the spec scores **≥ 90** against [`ruleset/spec0-baseline.yaml`](ruleset/spec0-baseline.yaml),
-   a deliberately relaxed ruleset that measures structural soundness, not style. The
-   registry enforces this server-side on every publish; a version that regresses below
-   the bar is rejected and the last passing version stays live.
+4. **Scored, not gated** — every spec is linted against
+   [`ruleset/spec0-baseline.yaml`](ruleset/spec0-baseline.yaml) on publish and the score is
+   shown on the listing, along with how many findings are structural (a broken reference, an
+   invalid schema) versus style (a missing description). A low score does not keep an API out.
+   Showing what a published specification actually looks like is the point, and hiding the ones
+   that score badly would make this a worse record of the real world, not a better one.
 
 ## Where a listing lives
 
@@ -64,7 +66,7 @@ Open a PR adding an entry to `manifest.json`. The PR must show:
 - the bundled size,
 - the `vendorSlug` and `slug` it should be served at.
 
-The calibration run on your PR will show whether it clears the score gate.
+The calibration run on your PR will report its score and findings.
 
 **Is it your own (or proprietary) API?** Then this repo is the wrong door — mirrors are
 only for specs the owner already publishes under a redistributable license. Instead,
