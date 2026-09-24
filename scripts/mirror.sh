@@ -17,6 +17,43 @@ set -euo pipefail
 
 MODE="${MODE:-calibrate}"
 MIN_SCORE="${MIN_SCORE:-90}"
+
+# Publishing pace.
+#
+# A publish is not a cheap write. The registry parses the document, lints it, and does further
+# work per version — including diffing the new version against the previous one, which holds two
+# parsed specifications in memory at once. That work is queued, and the queue fills faster than
+# it drains. Run flat out over a few dozen specifications and it is the queue, not any single
+# document, that exhausts the server.
+#
+# So publish in small batches and pause between them. A batch is capped by BOTH count and total
+# bytes, whichever fills first: five specifications is a very different amount of work depending
+# on which five, and the byte cap is what actually tracks the cost.
+#
+# Re-publishing an unchanged document short-circuits on the server and costs almost nothing, so
+# a steady-state weekly run rarely pauses. This matters on the first run over a batch of new
+# listings — the run that has caused trouble before.
+BATCH_SIZE="${BATCH_SIZE:-5}"
+BATCH_MAX_BYTES="${BATCH_MAX_BYTES:-$((8 * 1024 * 1024))}"
+COOLDOWN_SECONDS="${COOLDOWN_SECONDS:-20}"
+
+batch_count=0
+batch_bytes=0
+
+# Called with the size of the spec about to be published, and pauses BEFORE adding it when it
+# would overflow. Checking afterwards would let one large document carry a batch well past the
+# cap — the first three specs in this manifest are 10 MB between them.
+cool_down_before() {
+  next_bytes="$1"
+  [ "$batch_count" -eq 0 ] && return 0
+  if [ "$batch_count" -ge "$BATCH_SIZE" ] || [ $((batch_bytes + next_bytes)) -gt "$BATCH_MAX_BYTES" ]; then
+    echo "Batch complete ($batch_count specs, $batch_bytes bytes) — pausing ${COOLDOWN_SECONDS}s."
+    sleep "$COOLDOWN_SECONDS"
+    batch_count=0
+    batch_bytes=0
+  fi
+  return 0
+}
 RULESET="ruleset/spec0-baseline.yaml"
 MANIFEST="manifest.json"
 MAX_BYTES=$((7 * 1024 * 1024))
@@ -149,6 +186,10 @@ for i in $(seq 0 $((count - 1))); do
       -H "Content-Type: application/json" \
       --data-binary "@/dev/stdin" <<<"$body"
   }
+
+  cool_down_before "$size_bytes"
+  batch_count=$((batch_count + 1))
+  batch_bytes=$((batch_bytes + size_bytes))
 
   http_status=$(publish_attempt "$tag")
   if [ "$http_status" = "409" ]; then
