@@ -27,6 +27,27 @@ An API is listed only if **all four** hold:
    registry enforces this server-side on every publish; a version that regresses below
    the bar is rejected and the last passing version stays live.
 
+## Where a listing lives
+
+Each entry is served at `/registry/{vendorSlug}/{slug}` — `/registry/stripe/api`,
+`/registry/ups/shipping-api`, `/registry/google/maps-platform`. The URL names whose API it
+is, and `/registry/stripe` is a page about the APIs Stripe publishes rather than a path
+through a bucket of ours.
+
+Two fields per entry decide it:
+
+| Field | What it is |
+|---|---|
+| `vendorSlug` | The vendor's own slug — `stripe`, `google`, `ups`. Shared by every listing from the same company. |
+| `slug` | The API, without repeating the vendor — `orders-api`, not `paypal-orders-api`. Plain `api` when the vendor publishes one API and calls it that. |
+
+The pair has to be unique, and the publish run refuses to start if two entries claim the
+same path or if any entry is missing a slug, a vendor, or a license.
+
+Vendor organisations on the registry have no members and are never shown as verified —
+domain verification is a claim about a publisher, and we are not the publisher. Each page
+names the real owner and states that it is not affiliated.
+
 ## How it works
 
 `.github/workflows/mirror.yml` runs weekly: fetch each manifest entry's official spec →
@@ -40,7 +61,8 @@ and publishes nothing.
 Open a PR adding an entry to `manifest.json`. The PR must show:
 - the official source (owner's repo/site),
 - the license (link to the LICENSE file),
-- the bundled size.
+- the bundled size,
+- the `vendorSlug` and `slug` it should be served at.
 
 The calibration run on your PR will show whether it clears the score gate.
 
